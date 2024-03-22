@@ -1,44 +1,100 @@
-export default function Result() {
+"use client";
+import { useReadContract, useAccount, useWriteContract } from "wagmi";
+import abi from "@/ABI/abi.json";
+import { useEffect, useState } from "react";
+import { http, createConfig, readContract } from "@wagmi/core";
+import { sepolia } from "@wagmi/core/chains";
+
+export default function Home() {
+  const [questions, setQuestions] = useState<any>();
+  const [numberOfQuestions, setNumberOfQuestions] = useState<number>();
+  const { writeContract } = useWriteContract();
+
+  const config = createConfig({
+    chains: [sepolia],
+    transports: {
+      [sepolia.id]: http(),
+    },
+  });
+
+  const result: any = useReadContract({
+    abi,
+    address: "0xef7dB5407D2F2a36e36fF28D336B136F43B8C946",
+    functionName: "getQuestionIds",
+  });
+
+  async function getQuestionsData() {
+    let questions = [];
+    if (numberOfQuestions) {
+      for (let i = 1; i <= numberOfQuestions; i++) {
+        const questionData: any = await readContract(config, {
+          abi,
+          address: "0xef7dB5407D2F2a36e36fF28D336B136F43B8C946",
+          functionName: "getQuestionById",
+          args: [i],
+        });
+        const voteCounts: any = await readContract(config, {
+          abi,
+          address: "0xef7dB5407D2F2a36e36fF28D336B136F43B8C946",
+          functionName: "getVoteCount",
+          args: [i],
+        });
+        const combine = questionData.concat(voteCounts);
+        questions.push(combine);
+      }
+    }
+    setQuestions(questions);
+  }
+
+  useEffect(() => {
+    function getNoOfQuestions() {
+      if (result.data) {
+        setNumberOfQuestions(Number(result.data));
+      }
+    }
+    getNoOfQuestions();
+    getQuestionsData();
+  }, [result]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="w-full space-y-6 flex flex-col items-center">
         <h3 className="text-lg font-medium tracking-wide text-white">
-          Polls Result
+          Vote For The Polls
         </h3>
-
-        <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 py-5">
-          <div className="flex flex-col items-center pb-10">
-            <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-white">
-              Do you like Apple?
-            </h5>
-
-            <div className="flex mt-4 md:mt-6">
-              <p className="inline-flex items-center px-4 py-2 text-sm font-medium text-center text-white">
-                Yes 12
-              </p>
-              <p className="py-2 px-4 ms-2 text-sm font-medium text-White focus:outline-none">
-                No 9
-              </p>
+        {questions &&
+          questions.map((items: any, index: number) => (
+            <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 py-5">
+              <div className="flex flex-col items-center pb-10">
+                {items[0] ? (
+                  <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-white">
+                    {items[0]}
+                  </h5>
+                ) : (
+                  <h5 className="h-3.5 bg-gray-200 rounded-full dark:bg-gray-700 w-48 mb-4"></h5>
+                )}
+                <div className="flex mt-4 md:mt-6">
+                  <p className="inline-flex items-center px-4 py-2 text-sm font-medium text-center text-white ">
+                    Yes {Number(items[3])}
+                  </p>
+                  <p className="py-2 px-4 ms-2 text-sm font-medium text-white ">
+                    No {Number(items[4])}
+                  </p>
+                </div>
+                <p className="mt-5">
+                  {Date.now() >= Number(items[1]) ? (
+                    <span className="bg-green-600 py-2 px-1 text-white">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="bg-red-600 py-2 px-1 text-white">
+                      Ended
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="w-full max-w-sm bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 py-5">
-          <div className="flex flex-col items-center pb-10">
-            <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-white">
-              Do you like Apple?
-            </h5>
-
-            <div className="flex mt-4 md:mt-6">
-              <p className="inline-flex items-center px-4 py-2 text-sm font-medium text-center text-white">
-                Yes 12
-              </p>
-              <p className="py-2 px-4 ms-2 text-sm font-medium text-White focus:outline-none">
-                No 9
-              </p>
-            </div>
-          </div>
-        </div>
+          ))}
       </div>
     </main>
   );
